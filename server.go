@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"encoding/json"
@@ -34,13 +35,27 @@ func main() {
 
 	decoder := json.NewDecoder(file)
 
+	localAddrs := getLocalAddrs()
+	for _, addr := range localAddrs {
+		log.Printf("Local address: %s\n", addr)
+	}
+
 	var cfgs []params = make([]params, 0)
 	err = decoder.Decode(&cfgs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	i := 0
+
 	for _, cfg := range cfgs {
+		cfg.LocalAddr = localAddrs[i]
+		i++
+
+		log.Printf("Port: %d -> Local address: %s\n", cfg.Port, cfg.LocalAddr)
+		if i >= len(localAddrs) {
+			i = 0
+		}
 		go runServer(cfg)
 	}
 
@@ -48,6 +63,25 @@ func main() {
 		time.Sleep(60 * time.Second)
 	}
 
+}
+
+func getLocalAddrs() []string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	localAddrs := make([]string, 0)
+	for _, addr := range addrs {
+		if !strings.HasPrefix(addr.String(), "172.") {
+			continue
+		}
+		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.IsGlobalUnicast() {
+			localAddrs = append(localAddrs, ipnet.IP.String())
+		}
+	}
+
+	return localAddrs
 }
 
 func runServer(cfg params) {
