@@ -23,31 +23,36 @@ type params struct {
 
 func main() {
 
-	if len(os.Args) < 2 {
-		log.Fatal("Usage: socks5-server <config.json>")
-	}
-	arg := os.Args[1]
-
-	file, err := os.Open(arg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	decoder := json.NewDecoder(file)
+	var cfgs []params = make([]params, 0)
 
 	localAddrs := getLocalAddrs()
 	for _, addr := range localAddrs {
 		log.Printf("Local address: %s\n", addr)
 	}
 
-	var cfgs []params = make([]params, 0)
-	err = decoder.Decode(&cfgs)
-	if err != nil {
-		log.Fatal(err)
+	if len(os.Args) < 2 {
+		cfgs = append(cfgs, params{
+			Port:      1080,
+			LocalAddr: "",
+		})
+		localAddrs = []string{"0.0.0.0"}
+	} else {
+		arg := os.Args[1]
+
+		file, err := os.Open(arg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		decoder := json.NewDecoder(file)
+
+		err = decoder.Decode(&cfgs)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	i := 0
-
 	for _, cfg := range cfgs {
 		cfg.LocalAddr = localAddrs[i]
 		i++
